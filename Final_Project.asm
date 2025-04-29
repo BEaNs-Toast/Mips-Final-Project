@@ -1,201 +1,236 @@
-# Minimal‑change Tetris Sandbox
-# * Grey rails + floor draw once.
-# * One green block moves with:
-#       a ← left   d → right   s ↓ down   r (prints)   q (quit)
-# * Uses MARS keyboard MMIO layout:
-#0xFFFF0000  Receiver‑CONTROL (bit‑0 = ready)
-#0xFFFF0004  Receiver‑DATA    (ASCII)
-
-
-#Compile‑time constants
-.eqv VRAM_BASE           0x10008000   # bitmap MMIO base
-.eqv KEY_CTRL            0xFFFF0000   # keyboard control reg (ready bit)
-.eqv KEY_DATA            0xFFFF0004   # keyboard data reg   (ASCII)
-
-# 128‑word‑wide (Display Map Settings - 16, 16, 128, 512)
-.eqv DISPLAY_W_WORDS     128
-.eqv SCREEN_STRIDE       512          
-
-.eqv LEFT_OFFSET_PLAY    8           
-.eqv RIGHT_OFFSET_PLAY   48          
-
-
-.eqv DOWN_LIMIT_BYTES    1480
-
-#Macros
-.macro syscall_msg(%lbl)
-    li   $v0, 4
-    la   $a0, %lbl
-    syscall
+.macro set_brush(%int)#This code places the brush in a specific location on the screen
+	li $t4, %int
+	add $t6, $t0, $t4
+	add $t7, $s0, $t4
+.end_macro
+.macro movebrush_right #this macro moves the brush by 1 pixel to the right on the screen
+	addi $t4, $t4, 4
+    	add $t6, $t0, $t4
+    	add $t7, $s0, $t4
+.end_macro
+.macro movebrush_left #this macro moves the brush by 1 pixel to the right on the screen
+	subi $t4, $t4, 4
+    	add $t6, $t0, $t4
+    	add $t7, $s0, $t4
+.end_macro
+.macro paint #this macro changes the color of the screen by what color was inputed into $t1
+	sw $t1, 0($t6)
+	li $t2, 1
+	andi $t7, $t7, 0xFFFFFFFC
+    	sw $t2, 0($t7) #This code does not work, but what it should do is tell the computer that that section of the screen is occpuied
+.end_macro
+.macro erase
+	set_color(BLACK)
+	sw $t1, 0($t6)
+	li $t2, 0
+	andi $t7, $t7, 0xFFFFFFFC
+    	sw $t2, 0($t7)
+   .end_macro
+.macro set_color(%string)
+	la $t5, %string
+	lw $t1, 0($t5)
+.end_macro
+.macro movecursor_right
+	erase
+	movebrush_right
+	movebrush_right
+	andi $t7, $t7, 0xFFFFFFFC
+	lw $t2, 0($t7)
+	beq $t2, 1, reset_cursor
+	set_color(CURSOR)
+	paint
+	movebrush_left 
+.end_macro
+.macro movecursor_left
+	movebrush_right
+	erase
+	movebrush_left
+	movebrush_left
+    	andi $t7, $t7, 0xFFFFFFFC
+	lw $t2, 0($t7)
+	beq $t2, 1, reset_cursor
+	set_color(CURSOR)
+	paint 
+.end_macro
+.macro movecursor_snap
+	erase
+	movebrush_right
+	erase
+	movebrush_left
+	jal move_down
+	set_color(CURSOR)
+	paint
+	movebrush_right
+	paint
+	li $v0, 4
+	la $a0, S_key
+	syscall
+	j reset_cursor
 .end_macro
 
-.macro set_brush_imm(%off)
-    li   $t4, %off
-    add  $t6, $t0, $t4
-    add  $t7, $s0, $t4
-.end_macro
-
-.macro sync_brush_from_t4
-    add  $t6, $t0, $t4
-    add  $t7, $s0, $t4
-.end_macro
-
-.macro movebrush
-    addi $t4, $t4, 4
-    sync_brush_from_t4
-.end_macro
-
-.macro paint
-    sw   $t1, 0($t6)
-.end_macro
-
-#Data
 .data
-DISPLAY:      .word VRAM_BASE
-KEY_CTRL_ADDR:.word KEY_CTRL
-KEY_DATA_ADDR:.word KEY_DATA
+DISPLAY: .word 0x10008000 #Display input
+KEY_PRESS: .word 0xFFFF0000 #Keyboard output 
+D_key: .asciiz "Block goes right"
+A_key: .asciiz "Block goes Left"
+S_key:	.asciiz "Block snaps to bottom"
+R_key: 	.asciiz "Block Rotates"
+DIS_ARR: .byte 0:2048 #supposed to stroe digits, is not used currently
+BORDER: .word 0x444444 #Border color
+CURSOR: .word 0x00ff00 #Green Color
+BLACK: .word 0x000000 #Black Color
+#Before starting the code, make sure to set the bitmap display to this:
+# Unit Width in Pixles - 16
+#Unit Height in Pixes - 16
+# Display Width in Pixels - 156
+#Display Height in Pixels - 512
+#Base Adress for display - 0x10008000 ($gp)
 
-D_key: .asciiz "Block goes right\n"
-A_key: .asciiz "Block goes left\n"
-S_key: .asciiz "Block snaps down\n"
-R_key: .asciiz "Rotate (not yet)\n"
+#Make sure to connect both the bitmap display and the Keyboard and Display MMIO Simulator as well.
 
-BORDER:       .word 0x444444
-BLOCK_COLOR:  .word 0x00ff00
-BLACK:        .word 0x000000
-
-DIS_ARR: .space 2048
-curr_off: .word 0
-
-#Text
 .text
-.globl main
-
-main:
-    lw   $t0, DISPLAY          # VRAM base
-    la   $s0, DIS_ARR
-
-    # draw border
-    set_brush_imm(0)
-    jal  draw_sides
-    set_brush_imm(1920)
-    jal  draw_bottom
-
-    # spawn first block
-    li   $t1, LEFT_OFFSET_PLAY
-    sw   $t1, curr_off
-    set_brush_imm(LEFT_OFFSET_PLAY)
-    la   $t2, BLOCK_COLOR
-    lw   $t1, 0($t2)
-    paint
-
-#Nain
-main_loop:
-    # poll keyboard MMIO
-    lw   $t9, KEY_CTRL_ADDR     # $t9 = 0xFFFF0000
-    lw   $t8, 0($t9)            # control / ready bit
-    andi $t8, $t8, 1
-    beqz $t8, main_loop         # not ready
-
-    lw   $a0, 4($t9)            # read ASCII from DATA reg (auto‑clears ready)
-
-    li   $t2, 'd'
-    beq  $a0, $t2, D_press
-    li   $t2, 'a'
-    beq  $a0, $t2, A_press
-    li   $t2, 's'
-    beq  $a0, $t2, S_press
-    li   $t2, 'r'
-    beq  $a0, $t2, R_press
-    li   $t2, 'q'
-    beq  $a0, $t2, quit
-    j    main_loop
-
-#Keyboard
-D_press:
-    la   $t3, curr_off
-    lw   $t4, 0($t3)
-    li   $t5, 44               # right edge before wall
-    bge  $t4, $t5, key_done
-    # erase old
-    sync_brush_from_t4
-    la   $t1, BLACK
-    paint
-    # draw new
-    addi $t4, $t4, 4
-    sw   $t4, 0($t3)
-    sync_brush_from_t4
-    la   $t1, BLOCK_COLOR
-    paint
-    syscall_msg D_key
-    j   main_loop
-
-A_press:
-    la   $t3, curr_off
-    lw   $t4, 0($t3)
-    li   $t5, LEFT_OFFSET_PLAY
-    ble  $t4, $t5, key_done
-    sync_brush_from_t4
-    la   $t1, BLACK
-    paint
-    addi $t4, $t4, -4
-    sw   $t4, 0($t3)
-    sync_brush_from_t4
-    la   $t1, BLOCK_COLOR
-    paint
-    syscall_msg A_key
-    j   main_loop
-
-S_press:
-    la   $t3, curr_off
-    lw   $t4, 0($t3)
-    addi $t4, $t4, SCREEN_STRIDE
-    li   $t5, DOWN_LIMIT_BYTES
-    bgt  $t4, $t5, key_done
-    sync_brush_from_t4
-    la   $t1, BLACK
-    paint
-    sw   $t4, 0($t3)
-    sync_brush_from_t4
-    la   $t1, BLOCK_COLOR
-    paint
-    syscall_msg S_key
-    j   main_loop
-
-R_press:
-    syscall_msg R_key
-key_done:
-    j   main_loop
-
-quit:
-    li   $v0, 10
-    syscall
-
-#Border
-.globl draw_sides
+	main:
+	lw $t0, DISPLAY
+	la $s0, DIS_ARR
+	jal initial_spawn
+	lw $t9, KEY_PRESS
+	lw $t8, 0($t9)
+	beq $t8, 1, check_key 
+	j main
+check_key:
+	lw $a0, 4($t9) #this loads the character pressed into $a0
+	beq $a0, 100, D_press
+	beq $a0, 114, R_press
+	beq $a0, 97, A_press
+	beq $a0, 115, S_press
+	beq $a0, 113, end #If you press Q, this activates
+	j main
 draw_sides:
-    la $t5, BORDER
-    lw $t1, 0($t5)
-paint_left:
+	la $t5, BORDER
+	lw $t1, 0($t5)
+	
+	paint
+    
+    	movebrush_right
+    
     paint
-    movebrush
-    paint
+    
     addi $t4, $t4, 52
     add $t6, $t0, $t4
     add $t7, $s0, $t4
+    
     paint
-    movebrush
-    paint
-    movebrush
-    blt $t4, 1914, paint_left
-    jr $ra
-
-.globl draw_bottom
+    
+   movebrush_right
+    
+   paint
+    
+   movebrush_right
+   blt $t4, 1914, draw_sides
+   jr $ra
 draw_bottom:
-    la $t5, BORDER
-    lw $t1, 0($t5)
-paint_floor:
-    paint
-    movebrush
-    blt $t4, 2045, paint_floor
-    jr $ra
+	la $t5, BORDER
+	lw $t1, 0($t5)
+	paint
+	movebrush_right
+	blt $t4, 2045, draw_bottom
+	jr $ra
+D_press:
+	movecursor_right
+	li $v0, 4
+	la $a0, D_key
+	syscall
+	j main
+R_press:
+	li $v0, 4
+	la $a0, R_key
+	syscall
+	j main
+A_press:
+	movecursor_left
+	li $v0, 4
+	la $a0, A_key
+	syscall
+	j main
+S_press:
+	movecursor_snap
+	li $v0, 4
+	la $a0, S_key
+	syscall
+	j main
+end:
+	li $v0, 10
+	syscall
+set_board:
+	set_brush(0)
+	jal reset
+	set_brush(0)
+	jal draw_sides #addes the sides for the screen
+	set_brush(1920)
+	jal draw_bottom #addes the bottom for the screen
+	set_brush(28)
+	set_color(CURSOR)
+	paint
+	movebrush_right
+	paint
+	movebrush_left
+	li $s3, 1
+	lw $ra, 0($sp)
+	add $sp, $sp, 4
+	jr $ra
+reset:
+	erase
+	movebrush_right
+	blt $t4, 2045, reset
+	jr $ra
+
+initial_spawn:
+	sub $sp, $sp, 4
+	sw $ra, 0($sp)
+	beqz $s3, set_board
+	lw $ra, 0($sp)
+	add $sp, $sp, 4
+	jr $ra
+reset_cursor:
+	set_brush(8)
+	jal clear_top
+	set_brush(28)
+	set_color(CURSOR)
+	paint
+	movebrush_right
+	paint
+	movebrush_left
+	j main
+move_down:
+	addi $t4, $t4, 64
+    	add $t6, $t0, $t4
+    	add $t7, $s0, $t4
+	andi $t7, $t7, 0xFFFFFFFC
+	lw $t2, 0($t7)
+	beq $t2, 0, move_down
+	movebrush_right
+	add $t7, $s0, $t4
+	andi $t7, $t7, 0xFFFFFFFC
+	lw $t2, 0($t7)
+	beq $t2, 1, move_up
+	movebrush_left
+	subi $t4, $t4, 64
+    	add $t6, $t0, $t4
+    	add $t7, $s0, $t4
+	jr $ra
+move_up:
+	subi $t4, $t4, 64
+    	add $t6, $t0, $t4
+    	add $t7, $s0, $t4
+    	andi $t7, $t7, 0xFFFFFFFC
+	lw $t2, 0($t7)
+	beq $t2, 1, move_up
+	movebrush_left
+	jr $ra
+clear_top:
+	erase
+	movebrush_right
+	blt $t4, 55, clear_top
+	jr $ra
+	
+	
