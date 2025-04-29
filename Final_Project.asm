@@ -3,7 +3,9 @@
 	add $t6, $t0, $t4
 	add $t7, $s0, $t4
 .end_macro
+
 .macro movebrush_right #this macro moves the brush by 1 pixel to the right on the screen
+
 	addi $t4, $t4, 4
     	add $t6, $t0, $t4
     	add $t7, $s0, $t4
@@ -66,7 +68,6 @@
 	la $a0, S_key
 	syscall
 	j reset_cursor
-.end_macro
 
 .data
 DISPLAY: .word 0x10008000 #Display input
@@ -121,6 +122,7 @@ draw_sides:
     
     paint
     
+
    movebrush_right
     
    paint
@@ -232,5 +234,4 @@ clear_top:
 	movebrush_right
 	blt $t4, 55, clear_top
 	jr $ra
-	
 	
