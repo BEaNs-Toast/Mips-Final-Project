@@ -5,33 +5,37 @@
 .end_macro
 
 .macro movebrush_right #this macro moves the brush by 1 pixel to the right on the screen
-
 	addi $t4, $t4, 4
     	add $t6, $t0, $t4
     	add $t7, $s0, $t4
 .end_macro
+
 .macro movebrush_left #this macro moves the brush by 1 pixel to the right on the screen
 	subi $t4, $t4, 4
     	add $t6, $t0, $t4
     	add $t7, $s0, $t4
 .end_macro
+
 .macro paint #this macro changes the color of the screen by what color was inputed into $t1
 	sw $t1, 0($t6)
 	li $t2, 1
 	andi $t7, $t7, 0xFFFFFFFC
     	sw $t2, 0($t7) 
 .end_macro
+
 .macro erase
 	set_color(BLACK)
 	sw $t1, 0($t6)
 	li $t2, 0
 	andi $t7, $t7, 0xFFFFFFFC
     	sw $t2, 0($t7)
-   .end_macro
+.end_macro
+   
 .macro set_color(%string)
 	la $t5, %string
 	lw $t1, 0($t5)
 .end_macro
+
 .macro movecursor_right #this moves the cursor right by one
 	erase
 	movebrush_right
@@ -43,6 +47,7 @@
 	paint
 	movebrush_left 
 .end_macro
+
 .macro movecursor_left #this moves the cursor left by one
 	movebrush_right
 	erase
@@ -54,6 +59,7 @@
 	set_color(CURSOR)
 	paint 
 .end_macro
+
 .macro movecursor_snap #this makes the cursor drop its blocks down to the lowest  open spot
 	erase
 	movebrush_right
@@ -68,10 +74,12 @@
 	la $a0, S_key
 	syscall
 	j reset_cursor
+.end_macro
 
 .data
 DISPLAY: .word 0x10008000 #Display input
 KEY_PRESS: .word 0xFFFF0000 #Keyboard output 
+start_pos: .word 28
 D_key: .asciiz "Block goes right"
 A_key: .asciiz "Block goes Left"
 S_key:	.asciiz "Block snaps to bottom"
@@ -80,6 +88,9 @@ DIS_ARR: .byte 0:2048 #supposed to stroe digits, is not used currently
 BORDER: .word 0x444444 #Border color
 CURSOR: .word 0x00ff00 #Green Color
 BLACK: .word 0x000000 #Black Color
+PURPLE: .word 0xb56bff # Purple Color - T block
+
+T_BLOCK: .word 0, -4, 4, 64   # T shape: center, right, left, bottom center
 #Before starting the code, make sure to set the bitmap display to this:
 # Unit Width in Pixles - 16
 #Unit Height in Pixes - 16
@@ -190,9 +201,16 @@ initial_spawn:
 	sub $sp, $sp, 4
 	sw $ra, 0($sp)
 	beqz $s3, set_board
+	
+	la $s1, T_BLOCK
+    	set_color(PURPLE)
+    	move $s4, $zero #set draw block counter
+    	
+	jal draw_block
 	lw $ra, 0($sp)
 	add $sp, $sp, 4
 	jr $ra
+	
 reset_cursor:
 	set_brush(8)
 	jal clear_top
@@ -203,6 +221,7 @@ reset_cursor:
 	paint
 	movebrush_left
 	j main
+
 move_down:
 	addi $t4, $t4, 64
     	add $t6, $t0, $t4
@@ -220,6 +239,7 @@ move_down:
     	add $t6, $t0, $t4
     	add $t7, $s0, $t4
 	jr $ra
+	
 move_up:
 	subi $t4, $t4, 64
     	add $t6, $t0, $t4
@@ -229,9 +249,26 @@ move_up:
 	beq $t2, 1, move_up
 	movebrush_left
 	jr $ra
+	
 clear_top:
 	erase
 	movebrush_right
 	blt $t4, 55, clear_top
 	jr $ra
 	
+    	
+draw_block:
+    	
+	lw $s2, 0($s1) # load offset from block array 
+	addi $s3, $s2, 28 #set brush position to offset from array + base
+	#set brush position
+	move $t4, $s3
+   	add $t6, $t0, $t4
+	add $t7, $s0, $t4
+		
+    	paint
+    
+    	addi $s1, $s1, 4   # next offset in array
+    	addi $s4, $s4, 1 #increment spawn_loop counter
+    	blt $s4, 4, draw_block # will loop 4 times bc tetris blocks made of 4 blocks
+    	jr $ra
