@@ -89,8 +89,20 @@ BORDER: .word 0x444444 #Border color
 CURSOR: .word 0x00ff00 #Green Color
 BLACK: .word 0x000000 #Black Color
 PURPLE: .word 0xb56bff # Purple Color - T block
+TURQUOISE: .word 0x45ffdd #pink color - I block
+YELLOW: .word 0xfff400 #Yellow Color - O Block
+BLUE: .word 0x0004ff #Blue Color - J block
+RED: .word 0xc90000 #Red color - S block
+ORANGE: .word 0xff6600 #orange color - L block
 
-T_BLOCK: .word 0, -4, 4, 64   # T shape: center, right, left, bottom center
+T_BLOCK: .word 4, 64, 68, 72   # T shape
+I_BLOCK: .word 0, 4, 8, 12     # I shape: four horizontal blocks
+O_BLOCK: .word 0, 4, 64, 68 # O shape: small square
+J_BLOCK: .word 0, 64, 68, 72   # L shape
+L_BLOCK: .word 8, 64, 68, 72   # mirrored L
+S_BLOCK: .word 8, 4, 64, 68 # S shape
+Z_BLOCK: .word 0, 4, 68, 72
+
 #Before starting the code, make sure to set the bitmap display to this:
 # Unit Width in Pixles - 16
 #Unit Height in Pixes - 16
@@ -202,7 +214,7 @@ initial_spawn:
 	sw $ra, 0($sp)
 	beqz $s3, set_board
 	
-	la $s1, T_BLOCK
+	la $s1, Z_BLOCK
     	set_color(PURPLE)
     	move $s4, $zero #set draw block counter
     	
