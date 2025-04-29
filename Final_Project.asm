@@ -19,7 +19,7 @@
 	sw $t1, 0($t6)
 	li $t2, 1
 	andi $t7, $t7, 0xFFFFFFFC
-    	sw $t2, 0($t7) #This code does not work, but what it should do is tell the computer that that section of the screen is occpuied
+    	sw $t2, 0($t7) 
 .end_macro
 .macro erase
 	set_color(BLACK)
@@ -32,7 +32,7 @@
 	la $t5, %string
 	lw $t1, 0($t5)
 .end_macro
-.macro movecursor_right
+.macro movecursor_right #this moves the cursor right by one
 	erase
 	movebrush_right
 	movebrush_right
@@ -43,7 +43,7 @@
 	paint
 	movebrush_left 
 .end_macro
-.macro movecursor_left
+.macro movecursor_left #this moves the cursor left by one
 	movebrush_right
 	erase
 	movebrush_left
@@ -54,7 +54,7 @@
 	set_color(CURSOR)
 	paint 
 .end_macro
-.macro movecursor_snap
+.macro movecursor_snap #this makes the cursor drop its blocks down to the lowest  open spot
 	erase
 	movebrush_right
 	erase
