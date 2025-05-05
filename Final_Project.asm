@@ -44,7 +44,9 @@
 
 .macro moveblock_right #this moves the block right by one
 	jal erase_block
-	set_brush_reg($k1)
+	move $t4, $k1 	
+	add $t6, $t0, $t4 	
+	add $t7, $s0, $t4
 	movebrush_right
 	reset_cursor
 	setcolor_string(PURPLE) #update when you add randomziation of blocks
@@ -53,7 +55,9 @@
 
 .macro moveblock_left #this moves the cursor left by one
 	jal erase_block
-	set_brush_reg($k1)
+	move $t4, $k1 	
+	add $t6, $t0, $t4 	
+	add $t7, $s0, $t4
 	movebrush_left
 	reset_cursor
 	setcolor_string(PURPLE) #update when you add randomziation of blocks
@@ -62,13 +66,15 @@
 
 .macro moveblock_snap #This should move the block down, but I will leave it like this for right now, and pass it on to the next person. 
 	jal erase_block
-	set_brush_reg($k1)
+	move $t4, $k1 	
+	add $t6, $t0, $t4 	
+	add $t7, $s0, $t4
 	jal move_down
 	setcolor_string(PURPLE) #update when you add randomziation of blocks
 	jal draw_block
 	move $s4, $zero
-	set_brush_int(28)
-	log_cursor
+	set_brush(28)
+	reset_cursor
 	jal draw_block
 .end_macro
 
@@ -206,7 +212,8 @@ initial_spawn:
 	
 	#code to randomzie new falling block should be placed here, between the set board and spawn block
 	
-	beqz $s4, block_spawn
+	beq $s4, $zero, block_spawn
+	lw $ra, 0($sp)
 	add $sp, $sp, 4
 	jr $ra
 block_spawn:
@@ -218,8 +225,10 @@ block_spawn:
 	jal draw_block
 	lw $ra, 0($sp)
 	add $sp, $sp, 4
-	jr $ra		
+	jr $ra	
 reset_cursor:
+	la $s1, Z_BLOCK #resets block, please update when you add randomziation
+	li $s4, 4 #resets block number
 	jal erase_block #removes block
 	set_brush(0)
 	jal draw_sides #to fix sides (erase_block removes parts of the sides so I just reset the entire thing, no issues)
@@ -305,5 +314,6 @@ erase_block:
 #I will only be checking this code on friday, and I will not be fixing it, so please make sure that everything works
 #Note made by: Ben Tzobery
 #Side Note: if you guys want to remove the ability to rotate blocks, I will not hold it against you. you can change it to a reset screen button or something.......
+
 
 
