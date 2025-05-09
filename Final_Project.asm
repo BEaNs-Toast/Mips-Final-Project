@@ -49,7 +49,7 @@
 	add $t7, $s0, $t4
 	movebrush_right
 	reset_cursor
-	setcolor_string(PURPLE) #update when you add randomziation of blocks
+	setcolor_reg($s5)  #update when you add randomziation of blocks
 	jal draw_block
 .end_macro
 
@@ -60,7 +60,7 @@
 	add $t7, $s0, $t4
 	movebrush_left
 	reset_cursor
-	setcolor_string(PURPLE) #update when you add randomziation of blocks
+	setcolor_reg($s5)  #update when you add randomziation of blocks
 	jal draw_block
 .end_macro
 
@@ -70,13 +70,14 @@
 	add $t6, $t0, $t4 	
 	add $t7, $s0, $t4
 	jal move_down
-	setcolor_string(PURPLE) #update when you add randomziation of blocks
+	setcolor_reg($s5)  #update when you add randomziation of blocks
 	jal draw_block
 	move $s4, $zero
 	set_brush(28)
 	reset_cursor
 	jal draw_block
 .end_macro
+
 
 .data
 DISPLAY: .word 0x10008000 #Display input
@@ -88,10 +89,10 @@ S_key:	.asciiz "Block snaps to bottom"
 R_key: 	.asciiz "Block Rotates"
 DIS_ARR: .byte 0:2048 #supposed to stroe digits, is not used currently
 BORDER: .word 0x444444 #Border color
-CURSOR: .word 0x00ff00 #Green Color
+CURSOR: .word 0x00ff00 #Green Color - z block also
 BLACK: .word 0x000000 #Black Color
 PURPLE: .word 0xb56bff # Purple Color - T block
-TURQUOISE: .word 0x45ffdd #pink color - I block
+TURQUOISE: .word 0x45ffdd #Turquoise color - I block
 YELLOW: .word 0xfff400 #Yellow Color - O Block
 BLUE: .word 0x0004ff #Blue Color - J block
 RED: .word 0xc90000 #Red color - S block
@@ -100,15 +101,25 @@ ORANGE: .word 0xff6600 #orange color - L block
 T_BLOCK: .word 4, 64, 68, 72   # T shape
 I_BLOCK: .word 0, 4, 8, 12     # I shape: four horizontal blocks
 O_BLOCK: .word 0, 4, 64, 68 # O shape: small square
-J_BLOCK: .word 0, 64, 68, 72   # L shape
-L_BLOCK: .word 8, 64, 68, 72   # mirrored L
+J_BLOCK: .word 0, 64, 68, 72   # mirrored L
+L_BLOCK: .word 8, 64, 68, 72   # L shape
 S_BLOCK: .word 8, 4, 64, 68 # S shape
 Z_BLOCK: .word 0, 4, 68, 72 #Z_shaped block.....
+
+BLOCK_TABLE: .word T_BLOCK, I_BLOCK, O_BLOCK, J_BLOCK, L_BLOCK, S_BLOCK, Z_BLOCK
+COLOR_TABLE: 
+    .word PURPLE    # T-block
+    .word TURQUOISE # I-block
+    .word YELLOW     # O-block  
+    .word BLUE       # J-block
+    .word ORANGE     # L-block
+    .word RED        # S-block
+    .word CURSOR     # Z-block (now properly mapped)
 
 #Before starting the code, make sure to set the bitmap display to this:
 # Unit Width in Pixles - 16
 #Unit Height in Pixes - 16
-# Display Width in Pixels - 156
+# Display Width in Pixels - 256
 #Display Height in Pixels - 512
 #Base Adress for display - 0x10008000 ($gp)
 
@@ -154,6 +165,7 @@ draw_sides:
    movebrush_right
    blt $t4, 1914, draw_sides
    jr $ra
+   
 draw_bottom:
 	setcolor_string(BORDER)
 	paint
@@ -210,24 +222,38 @@ initial_spawn:
 	sw $ra, 0($sp)
 	beqz $s3, set_board
 	
-	#code to randomzie new falling block should be placed here, between the set board and spawn block
-	
 	beq $s4, $zero, block_spawn
 	lw $ra, 0($sp)
 	add $sp, $sp, 4
 	jr $ra
-block_spawn:
 	
-	la $s1, Z_BLOCK #This is where you set the falling block shape, update when you add randomization 
-    	setcolor_string(PURPLE) #this is where you set the falling block color, update when you add randomziation
-    	li $s4, 0 #set draw block counter, this is ethier at 4 (block on screen), or 0 (block not on screen)
+block_spawn:
+	    	# Generate random block index (0-6)
+    	li $v0, 42          # Syscall 42: Random int range
+    	li $a1, 7           # Upper bound (exclusive)
+    	syscall             # Random int now in $a0
+
+    	# Get random block shape
+    	sll $t3, $a0, 2     # Multiply index by 4 (word offset)
+    	la $t2, BLOCK_TABLE
+    	add $t2, $t2, $t3   # Calculate address in block table
+    	lw $s1, 0($t2)      # Load address of selected block in $s1
+
+    	# Get corresponding color
+    	la $t2, COLOR_TABLE
+    	add $t2, $t2, $t3   # Calculate address in color table
+    	lw $s5, 0($t2)      # Load color address in $t1
     	
-	jal draw_block
-	lw $ra, 0($sp)
-	add $sp, $sp, 4
-	jr $ra	
+    	setcolor_reg($s5)   # Set color using register value
+    	li $s4, 0           # Reset draw counter
+    
+    	jal draw_block
+    	lw $ra, 0($sp)
+    	add $sp, $sp, 4
+    	jr $ra
+	
 reset_cursor:
-	la $s1, Z_BLOCK #resets block, please update when you add randomziation
+	#la $s1, Z_BLOCK #resets block, please update when you add randomziation (current block is stored in $s1)
 	li $s4, 4 #resets block number
 	jal erase_block #removes block
 	set_brush(0)
@@ -269,8 +295,7 @@ clear_top: #isn't used at all, but eh
 	movebrush_right
 	blt $t4, 55, clear_top
 	jr $ra
-	
-    	
+	  	
 draw_block:
     	
 	lw $s2, 0($s1) # load offset from block array 
@@ -289,6 +314,8 @@ draw_block:
     	blt $s4, 4, draw_block # will loop 4 times bc tetris blocks made of 4 pixels
 	subi $s1, $s1, 16 # 4 offsets * 4 digits = 16 total, move it back to be zero
     	jr $ra
+    	
+    
 erase_block:    	
 	
 	lw $s2, 0($s1) # load offset from block array 
