@@ -18,6 +18,12 @@
     	add $t7, $s0, $t4
 .end_macro
 
+.macro movebrush_down #this macro moves the brush by 1 pixel down on the screen
+	add $t4, $t4, 64
+    	add $t6, $t0, $t4
+    	add $t7, $s0, $t4
+.end_macro
+
 .macro paint #this macro changes the color of the screen by what color was inputed into $t1
 	sw $t1, 0($t6)
 	li $t2, 1
@@ -64,20 +70,33 @@
 	jal draw_block
 .end_macro
 
+.macro moveblock_down #This should move the block down, but I will leave it like this for right now, and pass it on to the next person. 
+	jal erase_block
+	move $t4, $k1 	
+	add $t6, $t0, $t4 	
+	add $t7, $s0, $t4
+	movebrush_down
+	#jal draw_block
+	#move $s4, $zero
+	#set_brush(28)
+	reset_cursor
+	setcolor_reg($s5)  #update when you add randomziation of blocks
+	jal draw_block
+.end_macro
+
 .macro moveblock_snap #This should move the block down, but I will leave it like this for right now, and pass it on to the next person. 
 	jal erase_block
 	move $t4, $k1 	
 	add $t6, $t0, $t4 	
 	add $t7, $s0, $t4
 	jal move_down
-	setcolor_reg($s5)  #update when you add randomziation of blocks
+	setcolor_string(PURPLE) #update when you add randomziation of blocks
 	jal draw_block
 	move $s4, $zero
 	set_brush(28)
 	reset_cursor
 	jal draw_block
 .end_macro
-
 
 .data
 DISPLAY: .word 0x10008000 #Display input
@@ -190,7 +209,7 @@ A_press:
 	syscall
 	j main
 S_press:
-	moveblock_snap
+	moveblock_down
 	li $v0, 4
 	la $a0, S_key
 	syscall
@@ -262,23 +281,31 @@ reset_cursor:
 	reset_cursor
 	j main
 
-move_down: #needs to be updated to support falling block, I found out a way but it takes a decent amount of time, not sure if it will work with rotation, and I have done a bunch already
-	addi $t4, $t4, 64
-    	add $t6, $t0, $t4
-    	add $t7, $s0, $t4
-	andi $t7, $t7, 0xFFFFFFFC
-	lw $t2, 0($t7)
-	beq $t2, 0, move_down
-	movebrush_right
-	add $t7, $s0, $t4
-	andi $t7, $t7, 0xFFFFFFFC
-	lw $t2, 0($t7)
-	beq $t2, 1, move_up
-	movebrush_left
-	subi $t4, $t4, 64
-    	add $t6, $t0, $t4
-    	add $t7, $s0, $t4
-	jr $ra
+move_down:
+    li $t5, 0       
+
+check_fall_loop:
+    lw $s2, 0($s1)        
+    add $t3, $s2, $k1    
+    addi $t3, $t3, 64     
+
+    add $t7, $s0, $t3
+    andi $t7, $t7, 0xFFFFFFFC
+    lw $t6, 0($t7)
+    bne $t6, $zero, set_collision
+
+    addi $s1, $s1, 4
+    addi $t5, $t5, 1
+    blt $t5, 4, check_fall_loop
+
+    # No collision, move block down
+    subi $s1, $s1, 16
+    addi $k1, $k1, 64       
+    jr $ra
+
+set_collision:
+    subi $s1, $s1, 4
+    jr $ra
 	
 move_up:
 	subi $t4, $t4, 64
@@ -332,6 +359,18 @@ erase_block:
     	bgt $s4, 0, erase_block # will loop 4 times bc tetris blocks made of 4 pixles on the screen
     	subi $s1, $s1, 16 # 4 offsets * 4 digits = 16 total, move the offest back to zero
     	jr $ra
+    	
+fall_loop:
+    li $t5, 50000
+fall_delay:
+    subi $t5, $t5, 1
+    bgtz $t5, fall_delay
+    lw $t9, KEY_PRESS
+    lw $t8, 0($t9)
+    beq $t8, 1, check_key
+    moveblock_snap
+
+    j fall_loop
 
 #Note: please make sure to test your code and see if it works, it seriously feels like you just went to ChatGPT, copy pasted the code, and asked it to make tetris blocks, then just put the code in and took a nap.
 #ChatGPT should be considered as a tool at best. It does not mean that what it spits out is correct all the time. Its not a instant A+ maker. Its output is never perfect the first time around. 
