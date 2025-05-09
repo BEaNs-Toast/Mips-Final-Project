@@ -152,6 +152,7 @@ COLOR_TABLE:
 	lw $t9, KEY_PRESS
 	lw $t8, 0($t9)
 	beq $t8, 1, check_key 
+	jal fall_loop
 	j main
 check_key:
 	lw $a0, 4($t9) #this loads the character pressed into $a0
@@ -368,7 +369,7 @@ fall_delay:
     lw $t9, KEY_PRESS
     lw $t8, 0($t9)
     beq $t8, 1, check_key
-    moveblock_snap
+    moveblock_down
 
     j fall_loop
 
