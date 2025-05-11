@@ -26,6 +26,12 @@
     add $t7, $s0, $t4
 .end_macro
 
+.macro movebrush_up #this macro moves the brush by 1 pixel down on the screen
+	subi $t4, $t4, 64
+    add $t6, $t0, $t4
+    add $t7, $s0, $t4
+.end_macro
+
 .macro paint #this macro changes the color of the screen by what color was inputed into $t1
 	sw $t1, 0($t6)
 	li $t2, 1
@@ -78,6 +84,17 @@
 	add $t6, $t0, $t4 	
 	add $t7, $s0, $t4
 	movebrush_down
+	reset_cursor
+	setcolor_reg($s5)  #update when you add randomziation of blocks
+	jal draw_block
+.end_macro
+
+.macro moveblock_up #This should move the block up
+	#jal erase_block
+	move $t4, $k1 	
+	add $t6, $t0, $t4 	
+	add $t7, $s0, $t4
+	movebrush_up
 	reset_cursor
 	setcolor_reg($s5)  #update when you add randomziation of blocks
 	jal draw_block
@@ -279,7 +296,7 @@ block_spawn:
     	
 reset_cursor_func:
 	li $s4, 4 
-	jal erase_block  
+	jal erase_block
 	set_brush(0)
 	jal draw_sides #to fix sides (erase_block removes parts of the sides so I just reset the entire thing, no issues)
 	jal draw_bottom
@@ -336,9 +353,41 @@ set_collision:
     la $a0, collides
     syscall
     #redraw the block
-    #jal draw_block
-    #moveblock_up
-    jal reset_cursor_func
+    jal draw_block
+    move $s6, $s1
+    li $s4, 0
+    
+
+    #subi $s7, $k1, 64
+    move $t4, $k1 	
+    add $t6, $t0, $t4 	
+    add $t7, $s0, $t4
+    #movebrush_up
+    reset_cursor
+	setcolor_reg($s5)
+    draw_new_block:
+    	lw $s2, 0($s6) 
+	add $s3, $s2, $k1
+	move $t4, $s3
+   	add $t6, $t0, $t4
+	add $t7, $s0, $t4 
+	andi $t7, $t7, 0xFFFFFFFC
+        paint
+        addi $s6, $s6, 4   
+        addi $s4, $s4, 1 
+        blt $s4, 4, draw_new_block 
+	subi $s6, $s6, 16
+    	#jr $ra
+    	
+    	set_brush(0)
+	jal draw_sides #to fix sides (erase_block removes parts of the sides so I just reset the entire thing, no issues)
+	jal draw_bottom
+	set_brush(28)
+	reset_cursor
+	li $s4, 0
+	jal initial_spawn
+   
+    #jal reset_cursor_func
     li $s7, 0
     j fall_loop
     	
