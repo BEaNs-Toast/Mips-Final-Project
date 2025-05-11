@@ -586,7 +586,7 @@ next_row:
     addi $t1, $t1, 64
     li $t9, 1920  # 30 * 64 ó ignore bottom border row so it doesnt delete
     blt $t1, $t9, check_row_loop
-    jr $ra
+    j end_check 
 
 clear_this_row:
     move $a0, $t1
@@ -645,3 +645,5 @@ shift_cells:
 
 end_shift:
     jal reset_cursor_func
+end_check:
+	jal reset_cursor_func
