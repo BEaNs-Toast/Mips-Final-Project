@@ -21,7 +21,7 @@
 .end_macro
 
 .macro movebrush_down #this macro moves the brush by 1 pixel down on the screen
-	add $t4, $t4, 64
+	addi $t4, $t4, 64
     add $t6, $t0, $t4
     add $t7, $s0, $t4
 .end_macro
@@ -73,7 +73,7 @@
 .end_macro
 
 .macro moveblock_down #This should move the block down, but I will leave it like this for right now, and pass it on to the next person. 
-	jal erase_block
+	#jal erase_block
 	move $t4, $k1 	
 	add $t6, $t0, $t4 	
 	add $t7, $s0, $t4
@@ -98,6 +98,8 @@
 .end_macro
 
 .data
+down: .asciiz "block moves down"
+collides: .asciiz "collision"
 DISPLAY: .word 0x10008000 #Display input
 KEY_PRESS: .word 0xFFFF0000 #Keyboard output 
 DIS_ARR: .byte 0:2048 #supposed to stroe digits, is not used currently
@@ -147,6 +149,7 @@ main:
 	lw $t9, KEY_PRESS
 	lw $t8, 0($t9)
 	beq $t8, 1, check_key 
+	
 	jal fall_loop
 	j main
 	
@@ -276,31 +279,68 @@ block_spawn:
     	
 reset_cursor_func:
 	li $s4, 4 
-	jal erase_block 
+	jal erase_block  
 	set_brush(0)
 	jal draw_sides #to fix sides (erase_block removes parts of the sides so I just reset the entire thing, no issues)
+	jal draw_bottom
 	set_brush(28)
 	reset_cursor
 	j main
 	
+move_down:
+	li $t5, 0 #set counter for check_fall_loop
+    	move $s6, $s1 #move current block base into another register
+    	#move $t3, $s
+    	addi $s7, $k1, 64
+    	jal erase_block
+    	
 check_fall_loop:
-    lw $s2, 0($s1)        
-    add $t3, $s2, $k1    
-    addi $t3, $t3, 64     
-    add $t7, $s0, $t3
-    andi $t7, $t7, 0xFFFFFFFC
-    lw $t6, 0($t7)
-    bne $t6, $zero, set_collision
-    addi $s1, $s1, 4
+	lw $s2, 0($s6) 
+	
+	add $t3, $s2, $s7
+	#add $t3, $t3, 64
+   	#add $t6, $t0, $t4
+	#add $t3, $t3, $s3 #$s3 is the horizontal offsest
+	add $t7, $s0, $t3
+	andi $t7, $t7, 0xFFFFFFFC
+	lw $t2, 0($t7)
+	beq $t2, 1, set_collision
+
+    #lw $s2, 0($s1)        
+    #add $t3, $s2, $k1    
+    #addi $t3, $t3, 64     
+    #add $t7, $s0, $t3
+    #andi $t7, $t7, 0xFFFFFFFC
+    #lw $t6, 0($t7)
+    #bne $t6, $zero, set_collision
+    addi $s6, $s6, 4
     addi $t5, $t5, 1
+    
     blt $t5, 4, check_fall_loop
-    subi $s1, $s1, 16
-    addi $k1, $k1, 64       
-    jr $ra
+    
+    #if no collision move the block down
+    #subi $s6, $s6, 16
+    #addi $k1, $k1, 64
+    li $v0, 4
+    la $a0, down
+    syscall
+    
+    moveblock_down       
+    li $s7, 0
+    j fall_loop
     	
 set_collision:
-    subi $s1, $s1, 4
-    jr $ra
+    #subi $s6, $s6, 4
+    #move $s6, $s1
+    li $v0, 4
+    la $a0, collides
+    syscall
+    #redraw the block
+    #jal draw_block
+    #moveblock_up
+    jal reset_cursor_func
+    li $s7, 0
+    j fall_loop
     	
 draw_block:
 	lw $s2, 0($s1) 
@@ -311,12 +351,12 @@ draw_block:
 	andi $t7, $t7, 0xFFFFFFFC
 	lw $t2, 0($t7)
 	beq $t2, 1, reset_cursor_func	
-    paint
-    addi $s1, $s1, 4   
-    addi $s4, $s4, 1 
-    blt $s4, 4, draw_block 
+        paint
+        addi $s1, $s1, 4   
+        addi $s4, $s4, 1 
+        blt $s4, 4, draw_block 
 	subi $s1, $s1, 16
-    jr $ra
+    	jr $ra
     	
 erase_block:   
 	lw $s2, 0($s1)  
@@ -345,10 +385,12 @@ fall_delay:
     beq $a0, 115, do_softdrop
     beq $a0, 113, end       
 handle_fall:
-   	addi $s7, $s7, 1
+   addi $s7, $s7, 1
     li $t6, 6
-    blt $s7, $t6, fall_loop 
-    moveblock_down
+    blt $s7, $t6, fall_loop
+ 
+    jal move_down
+    #moveblock_down
     li $s7, 0
     j fall_loop
 do_left:
@@ -360,8 +402,3 @@ do_right:
 do_softdrop:
     moveblock_fastdown
     j handle_fall 
-
-
-
-
-
