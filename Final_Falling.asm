@@ -228,7 +228,6 @@ main:
 	lw $t9, KEY_PRESS
 	lw $t8, 0($t9)
 	beq $t8, 1, check_key 
-	
 	jal fall_loop
 	j main
 	
@@ -339,7 +338,8 @@ initial_spawn:
 block_spawn:   	
     li $v0, 42      
     li $a1, 7        
-    syscall         
+    syscall
+       
     # Get random block shape
     sll $t3, $a0, 2     
     la $t2, BLOCK_TABLE
@@ -423,8 +423,8 @@ set_collision:
 	subi $s6, $s6, 16
     	#jr $ra
     	
-    jal check_full_lines
    
+    jal check_full_lines
     jal reset_cursor_func
     li $s7, 0
     j fall_loop
@@ -508,18 +508,17 @@ sum_row:
     li $t9, 12         # Expect 12 filled cells, other 4 for sides
     beq $t4, $t9, clear_this_row
 
-
 next_row:
     addi $t1, $t1, 64
-    li $t9, 1920  # 30 * 64 ó ignore bottom border row so it doesnt delete
+    li $t9, 1920  # 30 * 64 Û ignore bottom border row so it doesnt delete
     blt $t1, $t9, check_row_loop
-    jr $ra
+    j end_check 
 
 clear_this_row:
     move $a0, $t1
     jal clear_line
     addi $t2, $t2, 1
-    j next_row
+    j check_row_loop   # Recheck the same row index
 
 clear_line:
         li $t3, 8              # Start at playable column (2nd column)
@@ -536,7 +535,6 @@ clear_loop:
     addi $t3, $t3, 4
     li $t8, 56             # 8 to 56 = 12 columns
     blt $t3, $t8, clear_loop
-
 
     # Shift rows above
     move $t9, $a0
@@ -571,4 +569,7 @@ shift_cells:
     j shift_rows
 
 end_shift:
-    jal reset_cursor_func
+    jr $ra
+end_check:
+	jal reset_cursor_func
+    
