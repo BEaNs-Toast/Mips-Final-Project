@@ -295,19 +295,19 @@ block_spawn:
     jr $ra
     	
 reset_cursor_func:
-	li $s4, 4 
-	jal erase_block
+	#li $s4, 4 
+	#jal erase_block
 	set_brush(0)
 	jal draw_sides #to fix sides (erase_block removes parts of the sides so I just reset the entire thing, no issues)
 	jal draw_bottom
 	set_brush(28)
 	reset_cursor
+	li $s4, 0
 	j main
 	
 move_down:
 	li $t5, 0 #set counter for check_fall_loop
     	move $s6, $s1 #move current block base into another register
-    	#move $t3, $s
     	addi $s7, $k1, 64
     	jal erase_block
     	
@@ -315,56 +315,38 @@ check_fall_loop:
 	lw $s2, 0($s6) 
 	
 	add $t3, $s2, $s7
-	#add $t3, $t3, 64
-   	#add $t6, $t0, $t4
-	#add $t3, $t3, $s3 #$s3 is the horizontal offsest
 	add $t7, $s0, $t3
 	andi $t7, $t7, 0xFFFFFFFC
 	lw $t2, 0($t7)
 	beq $t2, 1, set_collision
 
-    #lw $s2, 0($s1)        
-    #add $t3, $s2, $k1    
-    #addi $t3, $t3, 64     
-    #add $t7, $s0, $t3
-    #andi $t7, $t7, 0xFFFFFFFC
-    #lw $t6, 0($t7)
-    #bne $t6, $zero, set_collision
-    addi $s6, $s6, 4
-    addi $t5, $t5, 1
+    	addi $s6, $s6, 4
+    	addi $t5, $t5, 1
+   	blt $t5, 4, check_fall_loop
     
-    blt $t5, 4, check_fall_loop
+    	#if no collision move the block down
+    	li $v0, 4
+    	la $a0, down
+    	syscall
     
-    #if no collision move the block down
-    #subi $s6, $s6, 16
-    #addi $k1, $k1, 64
-    li $v0, 4
-    la $a0, down
-    syscall
-    
-    moveblock_down       
-    li $s7, 0
-    j fall_loop
+    	moveblock_down       
+    	li $s7, 0
+    	j fall_loop
     	
 set_collision:
-    #subi $s6, $s6, 4
-    #move $s6, $s1
     li $v0, 4
     la $a0, collides
     syscall
+    
     #redraw the block
-    jal draw_block
     move $s6, $s1
     li $s4, 0
     
-
-    #subi $s7, $k1, 64
     move $t4, $k1 	
     add $t6, $t0, $t4 	
     add $t7, $s0, $t4
-    #movebrush_up
     reset_cursor
-	setcolor_reg($s5)
+    setcolor_reg($s5)
     draw_new_block:
     	lw $s2, 0($s6) 
 	add $s3, $s2, $k1
@@ -378,16 +360,8 @@ set_collision:
         blt $s4, 4, draw_new_block 
 	subi $s6, $s6, 16
     	#jr $ra
-    	
-    	set_brush(0)
-	jal draw_sides #to fix sides (erase_block removes parts of the sides so I just reset the entire thing, no issues)
-	jal draw_bottom
-	set_brush(28)
-	reset_cursor
-	li $s4, 0
-	jal initial_spawn
    
-    #jal reset_cursor_func
+    jal reset_cursor_func
     li $s7, 0
     j fall_loop
     	
