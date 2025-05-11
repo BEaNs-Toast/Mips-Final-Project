@@ -306,14 +306,5 @@ erase_block:
     	subi $s1, $s1, 16 # 4 offsets * 4 digits = 16 total, move the offest back to zero
     	jr $ra
 
-#Note: please make sure to test your code and see if it works, it seriously feels like you just went to ChatGPT, copy pasted the code, and asked it to make tetris blocks, then just put the code in and took a nap.
-#ChatGPT should be considered as a tool at best. It does not mean that what it spits out is correct all the time. Its not a instant A+ maker. Its output is never perfect the first time around. 
-#I use chatGPT as well, but only for it to answer questions and guide me through the process of writing my code. I still make an effort to undertsand what the code does, and check it if problems arise, sometimes funneling errors back into ChatGPT
-#Not to mention, you should be checking your code instead of saying, "Well the code is not working, I tried, I am going to bed". Sometimes, the issue is pretty obvious.
-#Because if I have to fix the code due to your own incompetence, I should get an A+ and the rest of you guys should get D's, because you didn't even do the bare minimum amount of work
-#I will only be checking this code on friday, and I will not be fixing it, so please make sure that everything works
-#Note made by: Ben Tzobery
-#Side Note: if you guys want to remove the ability to rotate blocks, I will not hold it against you. you can change it to a reset screen button or something.......
-
 
 
