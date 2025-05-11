@@ -3,7 +3,7 @@
 	add $t6, $t0, $t4
 	add $t7, $s0, $t4
 .end_macro
-
+ 
 .macro reset_cursor #this code sets the permanent cursor that is used as a baseline for the block spawn and removal.
 	move $k1, $t4
 .end_macro
@@ -114,6 +114,68 @@
     jal draw_block
 .end_macro
 
+# ====== COLLISION MACROS ======
+.macro check_right_collision
+    la $t3, ($s1)        # Load block shape address
+    li $t5, 0            # Counter
+    li $v0, 0            # Default: no collision
+    
+right_check_loop:
+    lw $s2, 0($t3)       # Get block part offset
+    add $t4, $k1, $s2    # Current position
+    addi $t4, $t4, 4     # Proposed right position
+    
+    # Check right boundary (X=60 bytes = 15 cells)
+    andi $t6, $t4, 0x3F  # Get X position within row (0-63 bytes)
+    li $t7, 60
+    bgt $t6, $t7, right_collision
+    
+    # Check DIS_ARR for existing blocks
+    add $t7, $s0, $t4
+    lw $t8, 0($t7)
+    bnez $t8, right_collision
+    
+    addi $t3, $t3, 4
+    addi $t5, $t5, 1
+    blt $t5, 4, right_check_loop
+    j right_check_done
+    
+right_collision:
+    li $v0, 1            # Collision detected
+    
+right_check_done:
+.end_macro
+
+.macro check_left_collision
+    la $t3, ($s1)        # Load block shape address
+    li $t5, 0            # Counter
+    li $v0, 0            # Default: no collision
+    
+left_check_loop:
+    lw $s2, 0($t3)       # Get block part offset
+    add $t4, $k1, $s2    # Current position
+    addi $t4, $t4, -4    # Proposed left position
+    
+    # Check left boundary (X=0)
+    blt $t4, 0, left_collision
+    
+    # Check DIS_ARR for existing blocks
+    add $t7, $s0, $t4
+    lw $t8, 0($t7)
+    bnez $t8, left_collision
+    
+    addi $t3, $t3, 4
+    addi $t5, $t5, 1
+    blt $t5, 4, left_check_loop
+    j left_check_done
+    
+left_collision:
+    li $v0, 1            # Collision detected
+    
+left_check_done:
+.end_macro
+# ==============================
+
 .data
 down: .asciiz "block moves down"
 collides: .asciiz "collision"
@@ -131,7 +193,7 @@ RED: .word 0xc90000 #Red color - S block
 ORANGE: .word 0xff6600 #orange color - L block
 
 T_BLOCK: .word 4, 64, 68, 72   # T shape
-I_BLOCK: .word 0, 4, 8, 12     # I shape: four horizontal blocks
+I_BLOCK: .word 0, 64, 128, 192  # I shape 
 O_BLOCK: .word 0, 4, 64, 68 # O shape: small square
 J_BLOCK: .word 0, 64, 68, 72   # mirrored L
 L_BLOCK: .word 8, 64, 68, 72   # L shape
@@ -295,19 +357,19 @@ block_spawn:
     jr $ra
     	
 reset_cursor_func:
-	#li $s4, 4 
-	#jal erase_block
+	li $s4, 4 
+	jal erase_block
 	set_brush(0)
 	jal draw_sides #to fix sides (erase_block removes parts of the sides so I just reset the entire thing, no issues)
 	jal draw_bottom
 	set_brush(28)
 	reset_cursor
-	li $s4, 0
 	j main
 	
 move_down:
 	li $t5, 0 #set counter for check_fall_loop
     	move $s6, $s1 #move current block base into another register
+    	#move $t3, $s
     	addi $s7, $k1, 64
     	jal erase_block
     	
@@ -315,38 +377,57 @@ check_fall_loop:
 	lw $s2, 0($s6) 
 	
 	add $t3, $s2, $s7
+	#add $t3, $t3, 64
+   	#add $t6, $t0, $t4
+	#add $t3, $t3, $s3 #$s3 is the horizontal offsest
 	add $t7, $s0, $t3
 	andi $t7, $t7, 0xFFFFFFFC
 	lw $t2, 0($t7)
 	beq $t2, 1, set_collision
 
-    	addi $s6, $s6, 4
-    	addi $t5, $t5, 1
-   	blt $t5, 4, check_fall_loop
+    #lw $s2, 0($s1)        
+    #add $t3, $s2, $k1    
+    #addi $t3, $t3, 64     
+    #add $t7, $s0, $t3
+    #andi $t7, $t7, 0xFFFFFFFC
+    #lw $t6, 0($t7)
+    #bne $t6, $zero, set_collision
+    addi $s6, $s6, 4
+    addi $t5, $t5, 1
     
-    	#if no collision move the block down
-    	li $v0, 4
-    	la $a0, down
-    	syscall
+    blt $t5, 4, check_fall_loop
     
-    	moveblock_down       
-    	li $s7, 0
-    	j fall_loop
+    #if no collision move the block down
+    #subi $s6, $s6, 16
+    #addi $k1, $k1, 64
+    li $v0, 4
+    la $a0, down
+    syscall
+    
+    moveblock_down       
+    li $s7, 0
+    j fall_loop
     	
 set_collision:
+    #subi $s6, $s6, 4
+    #move $s6, $s1
     li $v0, 4
     la $a0, collides
     syscall
-    
     #redraw the block
+    jal draw_block
+    jal check_full_lines
     move $s6, $s1
     li $s4, 0
     
+
+    #subi $s7, $k1, 64
     move $t4, $k1 	
     add $t6, $t0, $t4 	
     add $t7, $s0, $t4
+    #movebrush_up
     reset_cursor
-    setcolor_reg($s5)
+	setcolor_reg($s5)
     draw_new_block:
     	lw $s2, 0($s6) 
 	add $s3, $s2, $k1
@@ -360,8 +441,16 @@ set_collision:
         blt $s4, 4, draw_new_block 
 	subi $s6, $s6, 16
     	#jr $ra
+    	
+    	set_brush(0)
+	jal draw_sides #to fix sides (erase_block removes parts of the sides so I just reset the entire thing, no issues)
+	jal draw_bottom
+	set_brush(28)
+	reset_cursor
+	li $s4, 0
+	jal initial_spawn
    
-    jal reset_cursor_func
+    #jal reset_cursor_func
     li $s7, 0
     j fall_loop
     	
@@ -413,7 +502,6 @@ handle_fall:
     blt $s7, $t6, fall_loop
  
     jal move_down
-    #moveblock_down
     li $s7, 0
     j fall_loop
 do_left:
@@ -425,3 +513,87 @@ do_right:
 do_softdrop:
     moveblock_fastdown
     j handle_fall 
+
+check_full_lines:
+    li $t1, 0          # Starting offset in DIS_ARR
+    li $t2, 0          # Cleared row counter
+
+check_row_loop:
+    li $t3, 8          # Start at 2nd column (skip first 2)
+    li $t4, 0          # Cell value sum
+sum_row:
+    add $t6, $s0, $t1
+    add $t6, $t6, $t3
+    lw $t7, 0($t6)
+    add $t4, $t4, $t7
+    addi $t3, $t3, 4
+    li $t8, 56         # 8 + 48 (12 columns) = 56
+    blt $t3, $t8, sum_row
+
+    li $t9, 12         # Expect 12 filled cells, other 4 for sides
+    beq $t4, $t9, clear_this_row
+
+
+next_row:
+    addi $t1, $t1, 64
+    li $t9, 1920  # 30 * 64 ó ignore bottom border row so it doesnt delete
+    blt $t1, $t9, check_row_loop
+    jr $ra
+
+clear_this_row:
+    move $a0, $t1
+    jal clear_line
+    addi $t2, $t2, 1
+    j next_row
+
+clear_line:
+        li $t3, 8              # Start at playable column (2nd column)
+clear_loop:
+    add $t4, $s0, $a0
+    add $t4, $t4, $t3
+    sw $zero, 0($t4)
+
+    add $t6, $t0, $a0
+    add $t6, $t6, $t3
+    li $t7, 0x000000
+    sw $t7, 0($t6)
+
+    addi $t3, $t3, 4
+    li $t8, 56             # 8 to 56 = 12 columns
+    blt $t3, $t8, clear_loop
+
+
+    # Shift rows above
+    move $t9, $a0
+
+shift_rows:
+    subi $t9, $t9, 64
+    blt $t9, 0, end_shift
+
+       li $t3, 8              # Start at column 2
+shift_cells:
+    add $s1, $s0, $t9
+    add $s1, $s1, $t3
+    add $s2, $s0, $t9
+    addi $s2, $s2, 64
+    add $s2, $s2, $t3
+    lw $t4, 0($s1)
+    sw $t4, 0($s2)
+
+    add $s3, $t0, $t9
+    add $s3, $s3, $t3
+    add $s4, $t0, $t9
+    addi $s4, $s4, 64
+    add $s4, $s4, $t3
+    lw $t5, 0($s3)
+    sw $t5, 0($s4)
+
+    addi $t3, $t3, 4
+    li $t8, 56
+    blt $t3, $t8, shift_cells
+
+    subi $a0, $a0, 64
+    j shift_rows
+
+end_shift:
+    jr $ra
