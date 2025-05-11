@@ -239,7 +239,7 @@ check_key:
 	beq $a0, 100, D_press
 	beq $a0, 97, A_press
 	beq $a0, 115, S_press
-	beq $a0, 113, end #If you press Q, this activates
+
 	j main
 	
 draw_sides:
@@ -542,8 +542,7 @@ fall_delay:
     lw $a0, 4($t9)
     beq $a0, 97, do_left   
     beq $a0, 100, do_right  
-    beq $a0, 115, do_softdrop
-    beq $a0, 113, end       
+    beq $a0, 115, do_softdrop  
 handle_fall:
    addi $s7, $s7, 1
     li $t6, 6
