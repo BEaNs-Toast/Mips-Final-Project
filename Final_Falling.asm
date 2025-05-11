@@ -192,11 +192,11 @@ BLUE: .word 0x0004ff #Blue Color - J block
 RED: .word 0xc90000 #Red color - S block
 ORANGE: .word 0xff6600 #orange color - L block
 
-T_BLOCK: .word 4, 64, 68, 72   # T shape
-I_BLOCK: .word 0, 64, 128, 192  # I shape 
+T_BLOCK: .word 0, 4, 8, 68   # T shape
+I_BLOCK: .word 0, 4, 8, 12 # I shape 
 O_BLOCK: .word 0, 4, 64, 68 # O shape: small square
-J_BLOCK: .word 0, 64, 68, 72   # mirrored L
-L_BLOCK: .word 8, 64, 68, 72   # L shape
+J_BLOCK: .word 0, 4, 8, 72   # mirrored L
+L_BLOCK: .word 68, 4, 8, 12   # L shape
 S_BLOCK: .word 8, 4, 64, 68 # S shape
 Z_BLOCK: .word 0, 4, 68, 72 #Z_shaped block.....
 
@@ -357,13 +357,14 @@ block_spawn:
     jr $ra
     	
 reset_cursor_func:
-	li $s4, 4 
-	jal erase_block
+	#li $s4, 4 
+	#jal erase_block
 	set_brush(0)
 	jal draw_sides #to fix sides (erase_block removes parts of the sides so I just reset the entire thing, no issues)
 	jal draw_bottom
 	set_brush(28)
 	reset_cursor
+	li $s4, 0 
 	j main
 	
 move_down:
@@ -409,25 +410,19 @@ check_fall_loop:
     j fall_loop
     	
 set_collision:
-    #subi $s6, $s6, 4
-    #move $s6, $s1
-    li $v0, 4
+     li $v0, 4
     la $a0, collides
     syscall
+    
     #redraw the block
-    jal draw_block
-    jal check_full_lines
     move $s6, $s1
     li $s4, 0
     
-
-    #subi $s7, $k1, 64
     move $t4, $k1 	
     add $t6, $t0, $t4 	
     add $t7, $s0, $t4
-    #movebrush_up
     reset_cursor
-	setcolor_reg($s5)
+    setcolor_reg($s5)
     draw_new_block:
     	lw $s2, 0($s6) 
 	add $s3, $s2, $k1
@@ -442,15 +437,9 @@ set_collision:
 	subi $s6, $s6, 16
     	#jr $ra
     	
-    	set_brush(0)
-	jal draw_sides #to fix sides (erase_block removes parts of the sides so I just reset the entire thing, no issues)
-	jal draw_bottom
-	set_brush(28)
-	reset_cursor
-	li $s4, 0
-	jal initial_spawn
+    jal check_full_lines
    
-    #jal reset_cursor_func
+    jal reset_cursor_func
     li $s7, 0
     j fall_loop
     	
@@ -570,7 +559,7 @@ shift_rows:
     subi $t9, $t9, 64
     blt $t9, 0, end_shift
 
-       li $t3, 8              # Start at column 2
+    li $t3, 8              # Start at column 2
 shift_cells:
     add $s1, $s0, $t9
     add $s1, $s1, $t3
@@ -596,4 +585,4 @@ shift_cells:
     j shift_rows
 
 end_shift:
-    jr $ra
+    jal reset_cursor_func
