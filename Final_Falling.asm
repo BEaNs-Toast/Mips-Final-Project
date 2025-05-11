@@ -376,31 +376,17 @@ move_down:
     	
 check_fall_loop:
 	lw $s2, 0($s6) 
-	
 	add $t3, $s2, $s7
-	#add $t3, $t3, 64
-   	#add $t6, $t0, $t4
-	#add $t3, $t3, $s3 #$s3 is the horizontal offsest
 	add $t7, $s0, $t3
 	andi $t7, $t7, 0xFFFFFFFC
 	lw $t2, 0($t7)
 	beq $t2, 1, set_collision
-
-    #lw $s2, 0($s1)        
-    #add $t3, $s2, $k1    
-    #addi $t3, $t3, 64     
-    #add $t7, $s0, $t3
-    #andi $t7, $t7, 0xFFFFFFFC
-    #lw $t6, 0($t7)
-    #bne $t6, $zero, set_collision
+	
     addi $s6, $s6, 4
     addi $t5, $t5, 1
-    
     blt $t5, 4, check_fall_loop
     
     #if no collision move the block down
-    #subi $s6, $s6, 16
-    #addi $k1, $k1, 64
     li $v0, 4
     la $a0, down
     syscall
