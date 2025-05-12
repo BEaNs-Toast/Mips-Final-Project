@@ -643,6 +643,6 @@ shift_cells:
     j shift_rows
 
 end_shift:
-    jal reset_cursor_func
+    jr $ra
 end_check:
 	jal reset_cursor_func
