@@ -36,7 +36,7 @@
 	sw $t1, 0($t6)
 	li $t2, 1
 	andi $t7, $t7, 0xFFFFFFFC
-    sw $t2, 0($t7) 
+    	sw $t2, 0($t7) 
 .end_macro
 
 .macro erase #erases on pixel
@@ -222,7 +222,6 @@ COLOR_TABLE:
 #Make sure to connect both the bitmap display and the Keyboard and Display MMIO Simulator as well.
 
 .text
-
 main:
 	lw $t0, DISPLAY
 	la $s0, DIS_ARR
@@ -347,7 +346,6 @@ do_exit:
     li   $v0, 10
     syscall
 
-	
 set_board:
 	set_brush(0)
 	jal reset
@@ -397,9 +395,9 @@ block_spawn:
     add   $t2, $t2, $t3
     lw    $s5, 0($t2)
 
-    
     li    $t5, 0                # counter = 0
     move  $t3, $s1              # t3 = first word of shape data
+    
 spawn_check:
     lw    $s2, 0($t3)           # s2 = offset of one cell
     add   $t4, $k1, $s2         # byte‐offset = k1 + s2
@@ -421,6 +419,7 @@ spawn_check:
     lw    $ra, 0($sp)
     add   $sp, $sp, 4
     jr    $ra
+    
 reset_cursor_func:
 	#li $s4, 4 
 	#jal erase_block
@@ -434,45 +433,28 @@ reset_cursor_func:
 	
 move_down:
 	li $t5, 0 #set counter for check_fall_loop
-    	move $s6, $s1 #move current block base into another register
-    	#move $t3, $s
-    	addi $s7, $k1, 64
-    	jal erase_block
+    move $s6, $s1 #move current block base into another register
+    addi $s7, $k1, 64
+    jal erase_block
     	
 check_fall_loop:
 	lw $s2, 0($s6) 
-	
 	add $t3, $s2, $s7
-	#add $t3, $t3, 64
-   	#add $t6, $t0, $t4
-	#add $t3, $t3, $s3 #$s3 is the horizontal offsest
+
 	add $t7, $s0, $t3
 	andi $t7, $t7, 0xFFFFFFFC
 	lw $t2, 0($t7)
 	beq $t2, 1, set_collision
 
-    #lw $s2, 0($s1)        
-    #add $t3, $s2, $k1    
-    #addi $t3, $t3, 64     
-    #add $t7, $s0, $t3
-    #andi $t7, $t7, 0xFFFFFFFC
-    #lw $t6, 0($t7)
-    #bne $t6, $zero, set_collision
     addi $s6, $s6, 4
     addi $t5, $t5, 1
-    
     blt $t5, 4, check_fall_loop
-    
-    #if no collision move the block down
-    #subi $s6, $s6, 16
-    #addi $k1, $k1, 64
-    
+
     moveblock_down       
     li $s7, 0
     j fall_loop
     	
 set_collision:
-    
     #redraw the block
     move $s6, $s1
     li $s4, 0
@@ -482,6 +464,7 @@ set_collision:
     add $t7, $s0, $t4
     reset_cursor
     setcolor_reg($s5)
+    
     draw_new_block:
     	lw $s2, 0($s6) 
 	add $s3, $s2, $k1
@@ -494,10 +477,8 @@ set_collision:
         addi $s4, $s4, 1 
         blt $s4, 4, draw_new_block 
 	subi $s6, $s6, 16
-    	#jr $ra
     	
     jal check_full_lines
-   
     jal reset_cursor_func
     li $s7, 0
     j fall_loop
@@ -511,12 +492,12 @@ draw_block:
 	andi $t7, $t7, 0xFFFFFFFC
 	lw $t2, 0($t7)
 	beq $t2, 1, reset_cursor_func	
-        paint
-        addi $s1, $s1, 4   
-        addi $s4, $s4, 1 
-        blt $s4, 4, draw_block 
+    paint
+    addi $s1, $s1, 4   
+    addi $s4, $s4, 1 
+    blt $s4, 4, draw_block 
 	subi $s1, $s1, 16
-    	jr $ra
+    jr $ra
     	
 erase_block:   
 	lw $s2, 0($s1)  
@@ -524,12 +505,12 @@ erase_block:
 	move $t4, $s3
    	add $t6, $t0, $t4
 	add $t7, $s0, $t4
-    erase
+   	erase
     addi $s1, $s1, 4  
-    subi $s4, $s4, 1
-    bgt $s4, 0, erase_block
-    subi $s1, $s1, 16 
-    jr $ra
+   	subi $s4, $s4, 1
+   	bgt $s4, 0, erase_block
+   	subi $s1, $s1, 16 
+   	jr $ra
     	
 fall_loop:
     li $t5, 20000
@@ -544,7 +525,7 @@ fall_delay:
     beq $a0, 100, do_right  
     beq $a0, 115, do_softdrop  
 handle_fall:
-   addi $s7, $s7, 1
+    addi $s7, $s7, 1
     li $t6, 6
     blt $s7, $t6, fall_loop
  
@@ -580,7 +561,6 @@ sum_row:
     li $t9, 12         # Expect 12 filled cells, other 4 for sides
     beq $t4, $t9, clear_this_row
 
-
 next_row:
     addi $t1, $t1, 64
     li $t9, 1920  # 30 * 64 ó ignore bottom border row so it doesnt delete
@@ -612,7 +592,6 @@ clear_loop:
 
     # Shift rows above
     move $t9, $a0
-
 shift_rows:
     subi $t9, $t9, 64
     blt $t9, 0, end_shift
