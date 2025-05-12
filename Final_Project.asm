@@ -21,7 +21,7 @@
 # Requirements:
 # - MARS MIPS Simulator.
 # - Tools > Keyboard and Display MMIO Simulator (connect to MIPS).
-# - Tools > Bitmap Display with the following settings:
+# - Tools > Bitmap Display with the following settings (connect to MIPS):
 #   * Unit Width in Pixels: 16
 #   * Unit Height in Pixels: 16
 #   * Display Width in Pixels: 256
